@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أكاديمية الهدى | لوحة الإدارة المتكاملة</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js للرسوم البيانية -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Confetti للاحتفالات -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- خط تجوال -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-main: #f8fafc; --bg-card: #ffffff; --text-main: #0f172a;
+            --border: #e2e8f0; --brand: #8b5cf6;
+        }
+
+        body { font-family: 'Tajawal', sans-serif; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        .layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 300px; background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; z-index: 20; box-shadow: -5px 0 15px rgba(0,0,0,0.03); padding: 20px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f1f5f9; }
+
+        /* الجدول المركزي */
+        .table-container { flex: 1; overflow: auto; padding: 20px; transition: 0.3s; }
+        .schedule-grid { width: 100%; border-collapse: separate; border-spacing: 6px; table-layout: fixed; min-width: 1500px; transition: 0.3s; }
+        .schedule-grid th { background: linear-gradient(135deg, #1e293b, #0f172a); color: white; padding: 12px; font-size: 0.9rem; position: sticky; top: 0; z-index: 10; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .schedule-grid td { background: var(--bg-card); border: 2px solid #f1f5f9; border-radius: 8px; padding: 4px; vertical-align: top; height: 110px; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .schedule-grid td:hover { border-color: #cbd5e1; }
+        .day-header { background: linear-gradient(135deg, #9f1239, #be123c) !important; color: white !important; position: sticky; right: 0; z-index: 11; width: 95px; font-weight: 900; text-align: center; }
+
+        /* كروت الطلاب */
+        .session-card {
+            border-radius: 8px; padding: 8px; margin-bottom: 6px; font-size: 0.8rem; font-weight: 900; color: white;
+            cursor: pointer; position: relative; overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .session-card:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 15px rgba(0,0,0,0.15); z-index: 5; }
+        .sheikh-name { font-size: 0.65rem; margin-top: 2px; font-weight: 700; opacity: 0.9; }
+        .time-display { font-size: 0.6rem; background: rgba(0,0,0,0.2); padding: 1px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+        .note-display { font-size: 0.55rem; color: #fde047; margin-top: 2px; font-weight: bold; line-height: 1.2; }
+        
+        /* علامات الحضور والغياب */
+        .status-badge {
+            position: absolute; top: 4px; left: 4px; width: 18px; height: 18px;
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            font-size: 0.6rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 1px solid white; z-index: 10;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+        .badge-present { background-color: #10b981; color: white; }
+        .badge-absent { background-color: #ef4444; color: white; }
+
+        .actions-row { display: flex; justify-content: space-between; margin-top: 6px; border-top: 1px dashed rgba(255,255,255,0.3); padding-top: 4px; }
+        .btn-attend { font-size: 0.65rem; padding: 3px 8px; border-radius: 4px; font-weight: 900; transition: 0.2s; border: none; background: rgba(255,255,255,0.2); color: white; }
+        .btn-attend.yes:hover { background: #10b981; transform: scale(1.1); }
+        .btn-attend.no:hover { background: #ef4444; transform: scale(1.1); }
+
+        /* شاشة التقارير الاحترافية */
+        .report-overlay {
+            position: fixed; inset: 0; background: #0f172a; z-index: 100;
+            display: none; flex-direction: column; overflow-y: auto; color: #f8fafc; padding: 30px;
+        }
+        .report-overlay.active { display: flex; animation: slideUp 0.4s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .kpi-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
+        .chart-container { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); height: 350px; }
+
+        /* النوافذ المنبثقة (Modals) */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(5px); z-index: 50; justify-content: center; align-items: center; }
+        .modal.active { display: flex; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .modal-content { background: white; padding: 30px; border-radius: 16px; width: 600px; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
+        .form-control { width: 100%; padding: 8px 10px; border: 2px solid #e2e8f0; border-radius: 8px; margin-top: 4px; outline: none; font-weight: bold; color: #334155; font-size: 0.85rem; }
+        .form-control:focus { border-color: var(--brand); }
+
+        /* النظرة الشاملة (Fit Mode) */
+        body.fit-mode .table-container { padding: 4px; }
+        body.fit-mode .schedule-grid { min-width: 100%; height: calc(100vh - 85px); border-spacing: 2px; }
+        body.fit-mode .schedule-grid td { height: auto; padding: 3px; }
+        body.fit-mode .schedule-grid th { padding: 5px; font-size: 0.7rem; }
+        body.fit-mode .day-header { width: 60px; font-size: 0.8rem; }
+        body.fit-mode .session-card { padding: 4px; font-size: 0.7rem; margin-bottom: 2px; }
+        body.fit-mode .sheikh-name { font-size: 0.55rem; }
+        body.fit-mode .actions-row { display: none !important; }
+
+        /* الطباعة */
+        @media print {
+            body { background: white !important; color: black !important; overflow: auto; height: auto; }
+            .no-print { display: none !important; }
+            .report-overlay { display: flex !important; position: static; background: white; padding: 0; color: black; }
+            .kpi-card, .chart-container { background: white; border: 1px solid #ccc; box-shadow: none; color: black; }
+            .kpi-card h3, .chart-container h3, p { color: black !important; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+
+    <!-- الشريط العلوي الرئيسي -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center z-30 shadow-sm no-print">
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-700 rounded-xl flex items-center justify-center font-black text-white text-2xl shadow-lg">H</div>
+                <div>
+                    <h1 class="text-2xl font-black text-gray-800 tracking-wide">أكاديمية الهدى</h1>
+                    
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs font-bold text-gray-500">الأرشيف:</span>
+                        <select id="archiveSelect" onchange="switchMonth(this.value)" class="text-xs font-bold text-violet-700 bg-violet-50 border border-violet-200 rounded px-2 py-1 outline-none cursor-pointer"></select>
+                        <button onclick="openModal('modalManageMonths')" title="إدارة الأشهر (حذف)" class="text-gray-400 hover:text-rose-500 transition px-1 text-sm">⚙️</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center bg-gray-100 rounded-xl p-1.5 ml-4 border border-gray-200 shadow-inner">
+                <button onclick="changeWeek(1)" id="btn-w1" class="week-btn px-4 py-2 text-sm font-black rounded-lg bg-white text-violet-700 shadow">الأسبوع 1</button>
+                <button onclick="changeWeek(2)" id="btn-w2" class="week-btn px-4 py-2 text-sm font-black rounded-lg text-gray-500 hover:text-gray-900">الأسبوع 2</button>
+                <button onclick="changeWeek(3)" id="btn-w3" class="week-btn px-4 py-2 text-sm font-black rounded-lg text-gray-500 hover:text-gray-900">الأسبوع 3</button>
+                <button onclick="changeWeek(4)" id="btn-w4" class="week-btn px-4 py-2 text-sm font-black rounded-lg text-gray-500 hover:text-gray-900">الأسبوع 4</button>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button onclick="toggleFitMode()" id="fitBtn" class="bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2.5 rounded-xl font-black transition">
+                🔍 ملاءمة الشاشة
+            </button>
+            <button onclick="openModal('modalNewMonth')" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2.5 rounded-xl font-black transition shadow-md">
+                📅 شهر جديد
+            </button>
+            <button onclick="openModal('modalReportSelect')" class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl font-black shadow-lg hover:shadow-xl transition">
+                📊 التقارير
+            </button>
+            <button onclick="openModal('modalAddSession')" class="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-6 py-2.5 rounded-xl font-black shadow-lg hover:shadow-xl transition">
+                ➕ إضافة حصة
+            </button>
+        </div>
+    </header>
+
+    <div class="layout no-print">
+        <aside class="sidebar">
+            <div class="mb-5 bg-violet-50 p-4 rounded-xl border border-violet-100 shadow-sm">
+                <div class="text-[11px] text-violet-600 font-black mb-1 uppercase">الدخل الشهري المتوقع</div>
+                <div class="font-black text-violet-900 text-xl" id="dashIncome">0 ج.م</div>
+            </div>
+            <div class="mb-6 bg-rose-50 p-4 rounded-xl border border-rose-100 shadow-sm">
+                <div class="text-[11px] text-rose-600 font-black mb-1 uppercase">رواتب المشايخ المتوقعة</div>
+                <div class="font-black text-rose-900 text-xl" id="dashOutcome">0 ج.م</div>
+            </div>
+
+            <div class="mb-6">
+                <label class="text-xs font-black text-gray-500 mb-2 block uppercase">تصفية الجدول:</label>
+                <select id="sheikhFilter" onchange="renderGrid()" class="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-gray-700 font-bold text-sm outline-none focus:border-violet-400">
+                    <option value="all">عرض الأكاديمية بالكامل</option>
+                </select>
+            </div>
+
+            <div class="flex-1 overflow-auto pr-2">
+                <h3 class="text-xs font-black text-gray-500 mb-3 uppercase">المشايخ (دليل الألوان)</h3>
+                <div id="legendContainer" class="flex flex-col gap-2"></div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="table-container">
+                <table class="schedule-grid" id="mainGrid"></table>
+            </div>
+        </main>
+    </div>
+
+    <!-- شاشة التقارير الاحترافية (Dark Dashboard) -->
+    <div id="reportDashboard" class="report-overlay">
+        <div class="flex justify-between items-center mb-8 border-b border-gray-700 pb-4 no-print">
+            <div>
+                <h1 class="text-3xl font-black text-white">المركز التحليلي لأكاديمية الهدى</h1>
+                <p class="text-gray-400 mt-2 font-bold" id="reportTitle">تقرير...</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-black shadow-lg">🖨️ طباعة (PDF)</button>
+                <button onclick="closeReport()" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-black">إغلاق التقرير ✖</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+            <div class="kpi-card border-t-4 border-green-500">
+                <h3 class="text-gray-400 font-bold text-xs mb-2">الدخل المحقق (حضور)</h3>
+                <p class="text-2xl font-black text-green-400" id="repIncome">0 ج.م</p>
+            </div>
+            <div class="kpi-card border-t-4 border-rose-500">
+                <h3 class="text-gray-400 font-bold text-xs mb-2">مستحقات المشايخ</h3>
+                <p class="text-2xl font-black text-rose-400" id="repOutcome">0 ج.م</p>
+            </div>
+            <div class="kpi-card border-t-4 border-blue-500">
+                <h3 class="text-gray-400 font-bold text-xs mb-2">الحصص المنجزة</h3>
+                <p class="text-2xl font-black text-blue-400" id="repSessions">0 حصة</p>
+            </div>
+            <div class="kpi-card border-t-4 border-orange-500">
+                <h3 class="text-gray-400 font-bold text-xs mb-2">حصص الغياب (✖)</h3>
+                <p class="text-2xl font-black text-orange-400" id="repAbsenceCount">0 حصة</p>
+            </div>
+            <div class="kpi-card border-t-4 border-red-600">
+                <h3 class="text-gray-400 font-bold text-xs mb-2">خسائر الغياب (مفقودة)</h3>
+                <p class="text-2xl font-black text-red-500" id="repAbsenceLoss">0 ج.م</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="chart-container">
+                <h3 class="text-gray-300 font-bold mb-4">الحصص المنجزة لكل معلم</h3>
+                <canvas id="barChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3 class="text-gray-300 font-bold mb-4">مقارنة الحضور والغياب (للأكاديمية)</h3>
+                <canvas id="pieChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= النوافذ المنبثقة (Modals) ================= -->
+    
+    <div id="modalNewMonth" class="modal">
+        <div class="modal-content" style="width: 450px;">
+            <h2 class="text-2xl font-black text-gray-800 mb-4">📅 بدء شهر جديد</h2>
+            <p class="text-sm text-gray-500 mb-4 font-bold">سيتم فتح سجلات حضور جديدة مع الاحتفاظ ببيانات الشهر القديم في الأرشيف.</p>
+            <div>
+                <label class="font-bold text-sm text-gray-700">اسم الشهر (مثال: أكتوبر):</label>
+                <input type="text" id="newMonthName" class="form-control mb-4">
+            </div>
+            <div>
+                <label class="font-bold text-sm text-gray-700">السنة:</label>
+                <input type="number" id="newMonthYear" class="form-control mb-6" value="2026">
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('modalNewMonth')" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-bold">إلغاء</button>
+                <button onclick="saveNewMonth()" class="flex-1 bg-violet-600 text-white py-2 rounded-lg font-black shadow-lg">تأكيد وبدء الشهر</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة إدارة الأشهر (حذف) -->
+    <div id="modalManageMonths" class="modal">
+        <div class="modal-content" style="width: 450px;">
+            <h2 class="text-xl font-black text-rose-600 mb-4">⚙️ إدارة الأرشيف (حذف شهر)</h2>
+            <p class="text-xs text-gray-500 mb-4 font-bold">يمكنك مسح أي شهر نهائياً من هنا. (تحذير: لا يمكن استعادة البيانات).</p>
+            <div id="monthsListDiv" class="flex flex-col gap-2 max-h-64 overflow-y-auto mb-4 p-2 bg-gray-50 rounded border"></div>
+            <div class="flex justify-end">
+                <button onclick="closeModal('modalManageMonths')" class="px-6 py-2 bg-gray-200 rounded-lg font-bold">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة اختيار التقرير -->
+    <div id="modalReportSelect" class="modal">
+        <div class="modal-content" style="width: 450px;">
+            <h2 class="text-2xl font-black text-gray-800 mb-6">📊 توليد التقارير</h2>
+            <div class="mb-4">
+                <label class="font-bold text-sm text-gray-700">اختر نوع التقرير:</label>
+                <select id="reportType" onchange="toggleReportOptions()" class="form-control">
+                    <option value="monthly">تقرير شهري (لشهر محدد)</option>
+                    <option value="yearly">تقرير سنوي (مجمع للعام)</option>
+                </select>
+            </div>
+            <div id="monthlySelectDiv" class="mb-6">
+                <label class="font-bold text-sm text-gray-700">اختر الشهر:</label>
+                <select id="reportMonthSelect" class="form-control"></select>
+            </div>
+            <div id="yearlySelectDiv" class="mb-6 hidden">
+                <label class="font-bold text-sm text-gray-700">اختر السنة:</label>
+                <select id="reportYearSelect" class="form-control"></select>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('modalReportSelect')" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-bold">إلغاء</button>
+                <button onclick="openReportView()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-black shadow-lg">عرض التقرير 🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة إضافة/تعديل الحصة -->
+    <div id="modalAddSession" class="modal">
+        <div class="modal-content" style="width: 600px;">
+            <h2 id="sessionModalTitle" class="text-2xl font-black text-gray-800 mb-4 border-b pb-2">إضافة حصة جديدة</h2>
+            <input type="hidden" id="sessionId">
+            
+            <div class="grid grid-cols-6 gap-3 mb-3">
+                <div class="col-span-3">
+                    <label class="font-bold text-xs text-gray-600">اسم الطالب / المجموعة:</label>
+                    <input type="text" id="studentName" class="form-control" placeholder="اكتب الاسم هنا...">
+                </div>
+                <div class="col-span-3">
+                    <label class="font-bold text-xs text-gray-600">المعلم / الشيخ:</label>
+                    <div class="flex gap-1 mt-1">
+                        <select id="sheikhSelect" class="form-control" style="margin-top:0;"></select>
+                        <button onclick="toggleNewSheikhForm()" class="bg-indigo-100 text-indigo-700 px-3 rounded-lg font-black hover:bg-indigo-200 transition text-xs whitespace-nowrap">➕ جديد</button>
+                    </div>
+                    <!-- إضافة شيخ جديد -->
+                    <div id="newSheikhForm" class="hidden bg-indigo-50 p-3 rounded-lg border border-indigo-100 mt-2">
+                        <label class="text-xs font-black text-indigo-800 block mb-1">اسم المعلم الجديد:</label>
+                        <input type="text" id="newSheikhName" class="form-control text-xs mb-2 py-1" placeholder="اكتب اسم الشيخ/المعلمة">
+                        <label class="flex items-center gap-2 cursor-pointer font-bold text-xs text-indigo-800">
+                            <input type="checkbox" id="newSheikhPaid" checked class="w-3 h-3">
+                            يستحق راتب (75ج)؟
+                        </label>
+                        <button onclick="saveNewSheikh()" class="mt-2 w-full bg-indigo-600 text-white py-1.5 rounded font-black text-xs hover:bg-indigo-700 transition">إضافة للقائمة</button>
+                    </div>
+                </div>
+                
+                <div class="col-span-2">
+                    <label class="font-bold text-xs text-gray-600">اليوم:</label>
+                    <select id="daySelect" class="form-control"></select>
+                </div>
+                <!-- الخانات الخاصة بالوقت -->
+                <div class="col-span-2">
+                    <label class="font-bold text-xs text-gray-600">تسكين بالجدول (العمود):</label>
+                    <select id="timeSelect" class="form-control text-xs"></select>
+                </div>
+                <div class="col-span-1">
+                    <label class="font-bold text-xs text-gray-600">من (كتابة):</label>
+                    <input type="text" id="timeFrom" class="form-control text-xs" placeholder="10:30ص">
+                </div>
+                <div class="col-span-1">
+                    <label class="font-bold text-xs text-gray-600">إلى (كتابة):</label>
+                    <input type="text" id="timeTo" class="form-control text-xs" placeholder="11:30ص">
+                </div>
+
+                <div class="col-span-2">
+                    <label class="font-bold text-xs text-gray-600">مبلغ الاشتراك (ج.م):</label>
+                    <input type="number" id="feeAmount" class="form-control" placeholder="مثال: 150">
+                </div>
+                <div class="col-span-2">
+                    <label class="font-bold text-xs text-gray-600">نظام الدفع:</label>
+                    <select id="feeType" class="form-control">
+                        <option value="hour">بالساعة</option>
+                        <option value="half">بالنصف ساعة</option>
+                        <option value="session">بالحصة</option>
+                        <option value="month">بالشهر</option>
+                    </select>
+                </div>
+                <div class="col-span-2">
+                    <label class="font-bold text-xs text-gray-600">مدة الحصة:</label>
+                    <select id="sessionDuration" class="form-control">
+                        <option value="1">ساعة كاملة</option>
+                        <option value="0.5">نصف ساعة</option>
+                        <option value="1.5">ساعة ونصف</option>
+                        <option value="2">ساعتين</option>
+                    </select>
+                </div>
+
+                <!-- خانة الملاحظات -->
+                <div class="col-span-6">
+                    <label class="font-bold text-xs text-gray-600">الملاحظات:</label>
+                    <input type="text" id="sessionNotes" class="form-control" placeholder="أي ملاحظات إضافية بخصوص الطالب أو الموعد...">
+                </div>
+            </div>
+
+            <div class="flex justify-between mt-6 pt-4 border-t border-gray-100">
+                <button id="btnDelete" onclick="deleteSession()" class="text-red-500 bg-red-50 px-4 py-2 rounded-lg font-bold text-sm hidden hover:bg-red-100">حذف نهائي</button>
+                <div class="flex gap-3 mr-auto">
+                    <button onclick="closeModal('modalAddSession')" class="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold">إلغاء</button>
+                    <button onclick="saveSession()" class="bg-emerald-500 text-white px-8 py-2 rounded-lg font-black shadow-lg hover:bg-emerald-600">حفظ التغييرات</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // ==========================================
+        // 1. نظام الصوت التفاعلي
+        // ==========================================
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            
+            if (type === 'success') { 
+                osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1); 
+                gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'pop') { 
+                osc.type = 'square'; osc.frequency.setValueAtTime(300, now);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            }
+        }
+
+        // ==========================================
+        // 2. قاعدة البيانات والألوان
+        // ==========================================
+        const defaultSheikhs = {
+            "عائشة": { color: "#9333ea", isPaid: true }, 
+            "أ. علي الأنصاري": { color: "#06b6d4", isPaid: true }, 
+            "أ. عبد الله الشاذلي": { color: "#1e3a8a", isPaid: true }, 
+            "أ. أحمد جمعة": { color: "#65a30d", isPaid: true }, 
+            "الشيخ ربيع": { color: "#0ea5e9", isPaid: true }, 
+            "د. عبدالله أبوحطب": { color: "#be123c", isPaid: false }, 
+            "أ. سمية": { color: "#db2777", isPaid: false }, 
+            "أ. محمد الدمنهوري": { color: "#ea580c", isPaid: true }, 
+            "أ. محمد علاء": { color: "#d97706", isPaid: true } 
+        };
+
+        let sheikhsConfig = JSON.parse(localStorage.getItem('huda_sheikhs_v10')) || defaultSheikhs;
+        const timeSlots = ['7-8ص','8-9ص','9-10ص','10-11ص','11-12ص','12-1م','1-2م','2-3م','3-4م','4-5م','5-6م','6-7م','7-8م','8-9م','9-10م'];
+        const days = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+
+        let scheduleDB = JSON.parse(localStorage.getItem('huda_schedule_v10')) || [
+            { id: 1, sheikh: "د. عبدالله أبوحطب", student: "قصي", day: "الأحد", slot: "1-2م", timeFrom: "1:30م", timeTo: "2:30م", feeAmount: 150, feeType: "hour", duration: 1, notes: "" },
+            { id: 2, sheikh: "أ. عبد الله الشاذلي", student: "قصي", day: "الأربعاء", slot: "5-6م", timeFrom: "5:00م", timeTo: "6:00م", feeAmount: 150, feeType: "hour", duration: 1, notes: "" },
+            { id: 3, sheikh: "عائشة", student: "تاليا", day: "الأحد", slot: "2-3م", timeFrom: "2:00م", timeTo: "3:00م", feeAmount: 100, feeType: "hour", duration: 1, notes: "" }
+        ];
+        
+        let monthsDB = JSON.parse(localStorage.getItem('huda_months_v10')) || {};
+        let currentMonthId = localStorage.getItem('huda_current_month_v10');
+
+        if(Object.keys(monthsDB).length === 0) {
+            const defaultId = "m_" + Date.now();
+            monthsDB[defaultId] = { id: defaultId, name: "الشهر الافتراضي", year: 2026, attendance: {} };
+            currentMonthId = defaultId;
+            saveData();
+        }
+
+        let currentWeek = 1;
+        let isFitMode = false;
+        let previousWeekCount = 0;
+
+        function saveData() {
+            localStorage.setItem('huda_schedule_v10', JSON.stringify(scheduleDB));
+            localStorage.setItem('huda_months_v10', JSON.stringify(monthsDB));
+            localStorage.setItem('huda_current_month_v10', currentMonthId);
+        }
+
+        // ==========================================
+        // 3. النوافذ والتحكم
+        // ==========================================
+        
+        function openModal(modalId, itemId = null) {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+            
+            if(modalId === 'modalAddSession') {
+                document.getElementById('daySelect').innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join('');
+                document.getElementById('timeSelect').innerHTML = timeSlots.map(t => `<option value="${t}">${t}</option>`).join('');
+                document.getElementById('sheikhSelect').innerHTML = Object.keys(sheikhsConfig).map(s => `<option value="${s}">${s}</option>`).join('');
+                document.getElementById('newSheikhForm').classList.add('hidden');
+
+                if(itemId) {
+                    document.getElementById('sessionModalTitle').innerText = "تعديل بيانات الحصة";
+                    document.getElementById('btnDelete').classList.remove('hidden');
+                    const item = scheduleDB.find(i => i.id === itemId);
+                    document.getElementById('sessionId').value = item.id;
+                    document.getElementById('studentName').value = item.student || "";
+                    document.getElementById('sheikhSelect').value = item.sheikh;
+                    document.getElementById('daySelect').value = item.day;
+                    document.getElementById('timeSelect').value = item.slot;
+                    document.getElementById('timeFrom').value = item.timeFrom || "";
+                    document.getElementById('timeTo').value = item.timeTo || "";
+                    document.getElementById('feeAmount').value = item.feeAmount || 0;
+                    document.getElementById('feeType').value = item.feeType || 'hour';
+                    document.getElementById('sessionDuration').value = item.duration || 1;
+                    document.getElementById('sessionNotes').value = item.notes || "";
+                } else {
+                    document.getElementById('sessionModalTitle').innerText = "إضافة حصة جديدة";
+                    document.getElementById('btnDelete').classList.add('hidden');
+                    document.getElementById('sessionId').value = "";
+                    document.getElementById('studentName').value = "";
+                    document.getElementById('timeFrom').value = "";
+                    document.getElementById('timeTo').value = "";
+                    document.getElementById('feeAmount').value = "";
+                    document.getElementById('sessionNotes').value = "";
+                }
+            }
+            
+            if(modalId === 'modalReportSelect') {
+                const mSelect = document.getElementById('reportMonthSelect');
+                const ySelect = document.getElementById('reportYearSelect');
+                mSelect.innerHTML = '';
+                const years = new Set();
+                
+                Object.values(monthsDB).forEach(m => {
+                    mSelect.innerHTML += `<option value="${m.id}">${m.name} ${m.year}</option>`;
+                    years.add(m.year);
+                });
+                ySelect.innerHTML = Array.from(years).map(y => `<option value="${y}">عام ${y}</option>`).join('');
+                toggleReportOptions();
+            }
+
+            if(modalId === 'modalManageMonths') {
+                renderManageMonthsList();
+            }
+
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
+
+        function toggleNewSheikhForm() {
+            document.getElementById('newSheikhForm').classList.toggle('hidden');
+        }
+
+        function saveNewSheikh() {
+            const name = document.getElementById('newSheikhName').value.trim();
+            const isPaid = document.getElementById('newSheikhPaid').checked;
+            if(!name) return alert("اكتب اسم الشيخ أولاً");
+            
+            const colors = ['#f43f5e', '#d946ef', '#8b5cf6', '#3b82f6', '#0ea5e9', '#10b981', '#84cc16', '#f59e0b', '#f97316'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            sheikhsConfig[name] = { color: randomColor, isPaid: isPaid };
+            localStorage.setItem('huda_sheikhs_v10', JSON.stringify(sheikhsConfig));
+            
+            updateSidebar();
+            document.getElementById('sheikhSelect').innerHTML += `<option value="${name}">${name}</option>`;
+            document.getElementById('sheikhSelect').value = name;
+            toggleNewSheikhForm();
+            playSound('success');
+            document.getElementById('newSheikhName').value = "";
+        }
+
+        function toggleFitMode() {
+            isFitMode = !isFitMode;
+            if(isFitMode) {
+                document.body.classList.add('fit-mode');
+                document.getElementById('fitBtn').innerText = "❌ إغلاق النظرة الشاملة";
+                document.getElementById('fitBtn').classList.replace('text-blue-600', 'text-rose-600');
+            } else {
+                document.body.classList.remove('fit-mode');
+                document.getElementById('fitBtn').innerText = "🔍 ملاءمة الشاشة";
+                document.getElementById('fitBtn').classList.replace('text-rose-600', 'text-blue-600');
+            }
+        }
+
+        function changeWeek(weekNum) {
+            currentWeek = weekNum;
+            document.querySelectorAll('.week-btn').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-violet-700', 'shadow');
+                btn.classList.add('text-gray-500');
+            });
+            const activeBtn = document.getElementById(`btn-w${weekNum}`);
+            activeBtn.classList.add('bg-white', 'text-violet-700', 'shadow');
+            activeBtn.classList.remove('text-gray-500');
+            previousWeekCount = 0;
+            renderGrid();
+        }
+
+        function switchMonth(monthId) {
+            currentMonthId = monthId;
+            saveData();
+            changeWeek(1);
+        }
+
+        function toggleAttendance(e, studentId, status) {
+            e.stopPropagation(); 
+            const attData = monthsDB[currentMonthId].attendance;
+            const key = `${studentId}_w${currentWeek}`;
+            
+            if (attData[key] === status) {
+                delete attData[key];
+                playSound('pop');
+            } else {
+                attData[key] = status;
+                if(status === 'present') playSound('success');
+                else playSound('pop');
+            }
+            saveData();
+            renderGrid();
+        }
+
+        function calculateSessionValue(feeAmount, feeType, duration) {
+            const amt = parseFloat(feeAmount) || 0;
+            const dur = parseFloat(duration) || 1;
+            if (feeType === 'hour') return amt * dur;
+            if (feeType === 'half') return amt * (dur * 2);
+            if (feeType === 'session') return amt;
+            if (feeType === 'month') return amt / 4;
+            return 0;
+        }
+
+        function saveSession() {
+            const id = document.getElementById('sessionId').value;
+            const newData = {
+                id: id ? parseInt(id) : Date.now(),
+                student: document.getElementById('studentName').value,
+                sheikh: document.getElementById('sheikhSelect').value,
+                day: document.getElementById('daySelect').value,
+                slot: document.getElementById('timeSelect').value,
+                timeFrom: document.getElementById('timeFrom').value,
+                timeTo: document.getElementById('timeTo').value,
+                feeAmount: parseFloat(document.getElementById('feeAmount').value) || 0,
+                feeType: document.getElementById('feeType').value,
+                duration: parseFloat(document.getElementById('sessionDuration').value) || 1,
+                notes: document.getElementById('sessionNotes').value
+            };
+            if (!newData.student) return alert("برجاء إدخال اسم الطالب");
+
+            if (id) {
+                const idx = scheduleDB.findIndex(i => i.id == id);
+                scheduleDB[idx] = newData;
+            } else {
+                scheduleDB.push(newData);
+            }
+            saveData(); closeModal('modalAddSession'); renderGrid();
+        }
+
+        function deleteSession() {
+            if(!confirm("حذف الحصة نهائياً من الجدول لجميع الأشهر؟")) return;
+            const id = document.getElementById('sessionId').value;
+            scheduleDB = scheduleDB.filter(i => i.id != id);
+            saveData(); closeModal('modalAddSession'); renderGrid();
+        }
+
+        function saveNewMonth() {
+            const name = document.getElementById('newMonthName').value.trim();
+            const year = document.getElementById('newMonthYear').value;
+            if(!name) return alert("اكتب اسم الشهر");
+            
+            const newId = "m_" + Date.now();
+            monthsDB[newId] = { id: newId, name: name, year: year, attendance: {} };
+            currentMonthId = newId;
+            saveData();
+            updateSidebar();
+            closeModal('modalNewMonth');
+            changeWeek(1);
+        }
+
+        function renderManageMonthsList() {
+            const list = document.getElementById('monthsListDiv');
+            list.innerHTML = '';
+            Object.values(monthsDB).forEach(m => {
+                list.innerHTML += `
+                    <div class="flex justify-between items-center bg-white p-2 rounded border border-gray-200 mb-1">
+                        <span class="font-bold text-sm">${m.name} ${m.year}</span>
+                        <button onclick="deleteMonth('${m.id}')" class="text-xs bg-rose-100 text-rose-600 px-3 py-1.5 rounded font-bold hover:bg-rose-200">حذف</button>
+                    </div>
+                `;
+            });
+        }
+
+        function deleteMonth(mId) {
+            if(!confirm("هل أنت متأكد من حذف هذا الشهر بكل سجلات الحضور الخاصة به؟ (لا يمكن التراجع)")) return;
+            delete monthsDB[mId];
+            if(Object.keys(monthsDB).length === 0) {
+                const defaultId = "m_" + Date.now();
+                monthsDB[defaultId] = { id: defaultId, name: "شهر جديد", year: new Date().getFullYear(), attendance: {} };
+                currentMonthId = defaultId;
+            } else if (currentMonthId === mId) {
+                currentMonthId = Object.keys(monthsDB)[0];
+            }
+            saveData(); renderManageMonthsList(); updateSidebar(); renderGrid();
+        }
+
+        // ==========================================
+        // 4. بناء الجدول
+        // ==========================================
+
+        function renderGrid() {
+            const filter = document.getElementById('sheikhFilter').value;
+            const grid = document.getElementById('mainGrid');
+            grid.innerHTML = '';
+
+            let thead = '<tr><th class="day-header">الأيام/الأوقات</th>';
+            timeSlots.forEach(slot => { thead += `<th>${slot}</th>`; });
+            thead += '</tr>';
+            grid.innerHTML += thead;
+
+            const attData = monthsDB[currentMonthId].attendance;
+            let currentWeekPresences = 0;
+
+            days.forEach(day => {
+                let row = `<tr><td class="day-header">${day}</td>`;
+                timeSlots.forEach(slot => {
+                    row += `<td>`;
+                    const cellItems = scheduleDB.filter(i => i.day === day && i.slot === slot && (filter === 'all' || i.sheikh === filter));
+                    
+                    cellItems.forEach(item => {
+                        const config = sheikhsConfig[item.sheikh] || { color: '#333', isPaid: true };
+                        const status = attData[`${item.id}_w${currentWeek}`];
+                        
+                        if(status === 'present') currentWeekPresences++;
+
+                        let badgeHtml = '';
+                        if(status === 'present') badgeHtml = `<div class="status-badge badge-present">✔</div>`;
+                        if(status === 'absent') badgeHtml = `<div class="status-badge badge-absent">✖</div>`;
+
+                        let timeDisplay = (item.timeFrom || item.timeTo) ? `<div class="time-display">${item.timeFrom} - ${item.timeTo}</div>` : '';
+                        let noteDisplay = item.notes ? `<div class="note-display">ملاحظة: ${item.notes}</div>` : '';
+
+                        row += `
+                            <div class="session-card" style="background-color: ${config.color};" onclick="openModal('modalAddSession', ${item.id})">
+                                ${badgeHtml}
+                                <div style="margin-right: ${status ? '22px' : '0'}; transition: 0.2s;">
+                                    <div>${item.student}</div>
+                                    <div class="sheikh-name">${item.sheikh}</div>
+                                    ${timeDisplay}
+                                    ${noteDisplay}
+                                </div>
+                                <div class="actions-row">
+                                    <button onclick="toggleAttendance(event, ${item.id}, 'present')" class="btn-attend yes">✔ حضور</button>
+                                    <button onclick="toggleAttendance(event, ${item.id}, 'absent')" class="btn-attend no">✖ غياب</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    row += `</td>`;
+                });
+                row += `</tr>`;
+                grid.innerHTML += row;
+            });
+
+            if(currentWeekPresences >= 20 && previousWeekCount < 20) {
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+            }
+            previousWeekCount = currentWeekPresences;
+
+            const mStats = calcStatsForMonth(currentMonthId);
+            document.getElementById('dashIncome').innerText = mStats.income.toFixed(0) + " ج.م";
+            document.getElementById('dashOutcome').innerText = mStats.outcome + " ج.م";
+            updateSidebar();
+        }
+
+        function updateSidebar() {
+            const filter = document.getElementById('sheikhFilter');
+            const legend = document.getElementById('legendContainer');
+            const archSelect = document.getElementById('archiveSelect');
+            const currentFilter = filter.value;
+            
+            filter.innerHTML = `<option value="all">عرض الأكاديمية بالكامل</option>`;
+            legend.innerHTML = '';
+            archSelect.innerHTML = '';
+            
+            Object.values(monthsDB).forEach(m => {
+                archSelect.innerHTML += `<option value="${m.id}" ${currentMonthId === m.id ? 'selected':''}>${m.name} ${m.year}</option>`;
+            });
+
+            Object.keys(sheikhsConfig).forEach(name => {
+                const conf = sheikhsConfig[name];
+                filter.innerHTML += `<option value="${name}" ${currentFilter === name ? 'selected':''}>${name}</option>`;
+                legend.innerHTML += `
+                    <div class="flex items-center gap-3 p-2.5 bg-white border border-gray-100 rounded-xl shadow-sm">
+                        <div style="width: 16px; height: 16px; background: ${conf.color}; border-radius: 4px;"></div>
+                        <span class="text-xs font-black text-gray-700">${name}</span>
+                    </div>
+                `;
+            });
+        }
+
+        // ==========================================
+        // 5. التقارير الذكية (مع حساب الغياب)
+        // ==========================================
+
+        function calcStatsForMonth(monthId) {
+            let income = 0, outcome = 0, presentCount = 0, absentCount = 0, absentLoss = 0;
+            let sheikhStats = {};
+            Object.keys(sheikhsConfig).forEach(s => sheikhStats[s] = { count: 0, salary: 0 });
+
+            const attData = monthsDB[monthId].attendance;
+
+            for (let w = 1; w <= 4; w++) {
+                scheduleDB.forEach(item => {
+                    const status = attData[`${item.id}_w${w}`];
+                    const sValue = calculateSessionValue(item.feeAmount, item.feeType, item.duration);
+                    
+                    if (status === 'present') {
+                        presentCount++;
+                        income += sValue;
+                        if(!sheikhStats[item.sheikh]) sheikhStats[item.sheikh] = {count:0, salary:0};
+                        sheikhStats[item.sheikh].count++;
+                        if (sheikhsConfig[item.sheikh].isPaid) {
+                            outcome += 75;
+                            sheikhStats[item.sheikh].salary += 75;
+                        }
+                    } else if (status === 'absent') {
+                        absentCount++;
+                        absentLoss += sValue;
+                    }
+                });
+            }
+            return { income, outcome, presentCount, absentCount, absentLoss, sheikhStats };
+        }
+
+        function toggleReportOptions() {
+            const type = document.getElementById('reportType').value;
+            if(type === 'monthly') {
+                document.getElementById('monthlySelectDiv').classList.remove('hidden');
+                document.getElementById('yearlySelectDiv').classList.add('hidden');
+            } else {
+                document.getElementById('monthlySelectDiv').classList.add('hidden');
+                document.getElementById('yearlySelectDiv').classList.remove('hidden');
+            }
+        }
+
+        let barChartInst = null;
+        let pieChartInst = null;
+
+        function openReportView() {
+            closeModal('modalReportSelect');
+            const type = document.getElementById('reportType').value;
+            let stats = { income: 0, outcome: 0, presentCount: 0, absentCount: 0, absentLoss: 0, sheikhStats: {} };
+            Object.keys(sheikhsConfig).forEach(s => stats.sheikhStats[s] = { count: 0, salary: 0 });
+
+            if(type === 'monthly') {
+                const mId = document.getElementById('reportMonthSelect').value;
+                const mData = monthsDB[mId];
+                document.getElementById('reportTitle').innerText = `تقرير شهر: ${mData.name} ${mData.year}`;
+                const mStats = calcStatsForMonth(mId);
+                
+                stats.income = mStats.income; stats.outcome = mStats.outcome; 
+                stats.presentCount = mStats.presentCount; stats.absentCount = mStats.absentCount; stats.absentLoss = mStats.absentLoss;
+                
+                Object.keys(mStats.sheikhStats).forEach(s => {
+                    stats.sheikhStats[s].count += mStats.sheikhStats[s].count;
+                    stats.sheikhStats[s].salary += mStats.sheikhStats[s].salary;
+                });
+            } else {
+                const year = document.getElementById('reportYearSelect').value;
+                document.getElementById('reportTitle').innerText = `التقرير السنوي الشامل لعام: ${year}`;
+                
+                Object.values(monthsDB).forEach(m => {
+                    if(m.year == year) {
+                        const mStats = calcStatsForMonth(m.id);
+                        stats.income += mStats.income; stats.outcome += mStats.outcome; 
+                        stats.presentCount += mStats.presentCount; stats.absentCount += mStats.absentCount; stats.absentLoss += mStats.absentLoss;
+                        Object.keys(mStats.sheikhStats).forEach(s => {
+                            stats.sheikhStats[s].count += mStats.sheikhStats[s].count;
+                            stats.sheikhStats[s].salary += mStats.sheikhStats[s].salary;
+                        });
+                    }
+                });
+            }
+
+            document.getElementById('repIncome').innerText = stats.income.toFixed(0) + " ج.م";
+            document.getElementById('repOutcome').innerText = stats.outcome + " ج.م";
+            document.getElementById('repSessions').innerText = stats.presentCount + " حصة";
+            document.getElementById('repAbsenceCount').innerText = stats.absentCount + " حصة";
+            document.getElementById('repAbsenceLoss').innerText = stats.absentLoss.toFixed(0) + " ج.م";
+
+            document.getElementById('reportDashboard').classList.add('active');
+            drawCharts(stats);
+        }
+
+        function closeReport() { document.getElementById('reportDashboard').classList.remove('active'); }
+
+        function drawCharts(stats) {
+            if(barChartInst) barChartInst.destroy();
+            if(pieChartInst) pieChartInst.destroy();
+
+            const labels = []; const sessionsData = []; const bgColors = [];
+            Object.keys(stats.sheikhStats).forEach(sheikh => {
+                const data = stats.sheikhStats[sheikh];
+                if(data.count > 0) {
+                    labels.push(sheikh); sessionsData.push(data.count); bgColors.push(sheikhsConfig[sheikh].color);
+                }
+            });
+
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.font.family = 'Tajawal';
+
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+            barChartInst = new Chart(ctxBar, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'حصص الحضور', data: sessionsData, backgroundColor: bgColors, borderRadius: 6 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            const ctxPie = document.getElementById('pieChart').getContext('2d');
+            pieChartInst = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: { 
+                    labels: ['إجمالي الحضور', 'إجمالي الغياب'], 
+                    datasets: [{ data: [stats.presentCount, stats.absentCount], backgroundColor: ['#10b981', '#ef4444'], borderWidth: 0 }] 
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'right' } } }
+            });
+        }
+
+        window.onload = () => {
+            document.body.addEventListener('click', () => { if(!audioCtx) audioCtx = new AudioContext(); }, { once: true });
+            renderGrid();
+        };
+    </script>
+</body>
+</html>
