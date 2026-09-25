@@ -155,6 +155,15 @@
                 <div class="font-black text-rose-900 text-xl" id="dashOutcome">0 ج.م</div>
             </div>
 
+            <!-- إحصائيات الأكاديمية التلقائية -->
+<div class="bg-white p-3 rounded-lg shadow-sm mb-3 border border-gray-100">
+    <span class="text-xs text-gray-500 block">إجمالي الحصص الأسبوعية</span>
+    <span id="total-lessons-count" class="text-lg font-bold text-indigo-600">0</span>
+</div>
+<div class="bg-white p-3 rounded-lg shadow-sm mb-3 border border-gray-100">
+    <span class="text-xs text-gray-500 block">إجمالي الطلاب (بدون تكرار)</span>
+    <span id="total-students-count" class="text-lg font-bold text-emerald-600">0</span>
+</div>
             <div class="mb-6">
                 <label class="text-xs font-black text-gray-500 mb-2 block uppercase">تصفية الجدول:</label>
                 <select id="sheikhFilter" onchange="renderGrid()" class="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-gray-700 font-bold text-sm outline-none focus:border-violet-400">
@@ -889,4 +898,43 @@
         };
     </script>
 </body>
+    <script>
+function calculateAcademyStats() {
+    const lessonCells = document.querySelectorAll('.schedule-grid td');
+    let totalLessons = 0;
+    let studentSet = new Set();
+
+    lessonCells.forEach(td => {
+        if (td.innerText && td.innerText.trim() !== '') {
+            let text = td.innerText.trim();
+            let lines = text.split('\n').map(l => l.trim()).filter(l => l);
+            if (lines.length > 0) {
+                let studentPart = lines[0];
+                if (studentPart && !studentPart.includes('السبت') && !studentPart.includes('الأحد') && !studentPart.includes('الإثنين') && !studentPart.includes('الثلاثاء') && !studentPart.includes('الأربعاء')) {
+                    totalLessons++;
+                    
+                    let names = studentPart.split(/\s+و\s+|\s+و/);
+                    names.forEach(name => {
+                        let cleanName = name.trim();
+                        if (cleanName && !cleanName.startsWith('د.') && !cleanName.startsWith('أ.') && !cleanName.startsWith('الشيخ')) {
+                            studentSet.add(cleanName);
+                        }
+                    });
+                }
+            }
+        }
+    });
+
+    if(document.getElementById('total-lessons-count')) {
+        document.getElementById('total-lessons-count').innerText = totalLessons;
+    }
+    if(document.getElementById('total-students-count')) {
+        document.getElementById('total-students-count').innerText = studentSet.size;
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(calculateAcademyStats, 600);
+});
+</script>
 </html>
