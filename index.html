@@ -156,8 +156,9 @@
             </div>
 
             <!-- إحصائيات الأكاديمية التلقائية -->
-<div class="bg-white p-3 rounded-lg shadow-sm mb-3 border border-gray-100">
-    <span class="text-xs text-gray-500 block">إجمالي الحصص الأسبوعية</span>
+<!-- مربع إجمالي الحصص التفاعلي -->
+<div onclick="openLessonsModal()" class="bg-white p-3 rounded-lg shadow-sm mb-3 border border-gray-150 cursor-pointer hover:border-indigo-500 transition-all">
+    <span class="text-xs text-gray-500 block">إجمالي الحصص الأسبوعية (اضغط للتدقيق 📚)</span>
     <span id="total-lessons-count" class="text-lg font-bold text-indigo-600">0</span>
 </div>
 <!-- مربع إجمالي الطلاب التفاعلي -->
@@ -899,23 +900,20 @@
         };
     </script>
 </body>
-    <div id="studentsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <!-- نافذة إدارة وتدقيق الطلاب (مرتبة أبجدياً) -->
+<div id="studentsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
     <div class="bg-white rounded-xl p-6 w-96 max-h-[80vh] overflow-y-auto shadow-2xl">
         <div class="flex justify-between items-center mb-4 border-b pb-2">
-            <h3 class="font-bold text-lg text-gray-800">إدارة وتدقيق أسماء الطلاب</h3>
+            <h3 class="font-bold text-lg text-gray-800">إدارة وتدقيق الطلاب (أبجدياً)</h3>
             <button onclick="closeStudentsModal()" class="text-gray-500 hover:text-red-500 font-bold text-xl">&times;</button>
         </div>
         
-        <!-- إضافة طالب يدوي -->
         <div class="mb-4 flex gap-2">
             <input type="text" id="manualStudentInput" placeholder="أضف اسم طالب جديد..." class="border p-2 rounded text-sm flex-1 focus:outline-none focus:border-emerald-500">
             <button onclick="addManualStudent()" class="bg-emerald-600 text-white px-3 py-2 rounded text-sm hover:bg-emerald-700">إضافة</button>
         </div>
 
-        <!-- قائمة الطلاب -->
-        <div id="studentsListContainer" class="space-y-2 divide-y">
-            <!-- سيتم تعبئة الأسماء هنا برمجياً -->
-        </div>
+        <div id="studentsListContainer" class="space-y-2 divide-y"></div>
 
         <div class="mt-6 text-center">
             <button onclick="closeStudentsModal()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm hover:bg-gray-300 w-full">إغلاق وتحديث اللوحة</button>
@@ -923,14 +921,32 @@
     </div>
 </div>
 
+<!-- نافذة تدقيق الحصص الأسبوعية -->
+<div id="lessonsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl p-6 w-[450px] max-h-[80vh] overflow-y-auto shadow-2xl">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h3 class="font-bold text-lg text-gray-800">تدقيق الحصص الأسبوعية المحسوبة 📚</h3>
+            <button onclick="closeLessonsModal()" class="text-gray-500 hover:text-red-500 font-bold text-xl">&times;</button>
+        </div>
+        
+        <div id="lessonsListContainer" class="space-y-2 divide-y text-sm text-gray-700"></div>
+
+        <div class="mt-6 text-center">
+            <button onclick="closeLessonsModal()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm hover:bg-gray-300 w-full">إغلاق</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let manualStudents = JSON.parse(localStorage.getItem('alhoda_manual_students')) || [];
 let excludedStudents = JSON.parse(localStorage.getItem('alhoda_excluded_students')) || [];
+let detectedLessonsDetails = [];
 
 function calculateAcademyStats() {
     const lessonCells = document.querySelectorAll('.schedule-grid td');
     let totalLessons = 0;
     let studentSet = new Set();
+    detectedLessonsDetails = [];
 
     lessonCells.forEach(td => {
         if (td.innerText && td.innerText.trim() !== '') {
@@ -940,6 +956,7 @@ function calculateAcademyStats() {
                 let studentPart = lines[0];
                 if (studentPart && !studentPart.includes('السبت') && !studentPart.includes('الأحد') && !studentPart.includes('الإثنين') && !studentPart.includes('الثلاثاء') && !studentPart.includes('الأربعاء')) {
                     totalLessons++;
+                    detectedLessonsDetails.push(studentPart);
                     
                     let names = studentPart.split(/\s+و\s+|\s+و/);
                     names.forEach(name => {
@@ -964,7 +981,8 @@ function calculateAcademyStats() {
         document.getElementById('total-students-count').innerText = studentSet.size;
     }
     
-    window.currentUniqueStudents = Array.from(studentSet);
+    // ترتيب الأسماء أبجدياً باللغة العربية
+    window.currentUniqueStudents = Array.from(studentSet).sort((a, b) => a.localeCompare(b, 'ar'));
 }
 
 function openStudentsModal() {
@@ -977,7 +995,7 @@ function openStudentsModal() {
             let row = document.createElement('div');
             row.className = 'flex justify-between items-center pt-2 text-sm text-gray-700';
             row.innerHTML = `
-                <span>${student}</span>
+                <span class="font-medium">${student}</span>
                 <button onclick="removeStudent('${student}')" class="text-red-500 hover:text-red-700 text-xs bg-red-50 px-2 py-1 rounded">استبعاد/حذف</button>
             `;
             container.appendChild(row);
@@ -992,6 +1010,29 @@ function openStudentsModal() {
 function closeStudentsModal() {
     document.getElementById('studentsModal').classList.add('hidden');
     calculateAcademyStats();
+}
+
+function openLessonsModal() {
+    calculateAcademyStats();
+    const container = document.getElementById('lessonsListContainer');
+    container.innerHTML = '';
+
+    if (detectedLessonsDetails.length > 0) {
+        detectedLessonsDetails.forEach((lesson, index) => {
+            let row = document.createElement('div');
+            row.className = 'pt-2 flex justify-between items-center';
+            row.innerHTML = `<span>حصة #${index + 1}: ${lesson}</span>`;
+            container.appendChild(row);
+        });
+    } else {
+        container.innerHTML = '<p class="text-center text-gray-400 py-4">لا توجد حصص مسجلة</p>';
+    }
+
+    document.getElementById('lessonsModal').classList.remove('hidden');
+}
+
+function closeLessonsModal() {
+    document.getElementById('lessonsModal').classList.add('hidden');
 }
 
 function addManualStudent() {
