@@ -900,7 +900,7 @@
         };
     </script>
 </body>
-    <!-- نافذة إدارة وتدقيق الطلاب (مرتبة أبجدياً) -->
+   <!-- نافذة إدارة وتدقيق الطلاب (مرتبة أبجدياً) -->
 <div id="studentsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
     <div class="bg-white rounded-xl p-6 w-96 max-h-[80vh] overflow-y-auto shadow-2xl">
         <div class="flex justify-between items-center mb-4 border-b pb-2">
@@ -921,18 +921,24 @@
     </div>
 </div>
 
-<!-- نافذة تدقيق الحصص الأسبوعية -->
+<!-- نافذة إدارة وتدقيق الحصص الأسبوعية (جديد: تعديل، حذف، إضافة) -->
 <div id="lessonsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-    <div class="bg-white rounded-xl p-6 w-[450px] max-h-[80vh] overflow-y-auto shadow-2xl">
+    <div class="bg-white rounded-xl p-6 w-[480px] max-h-[80vh] overflow-y-auto shadow-2xl">
         <div class="flex justify-between items-center mb-4 border-b pb-2">
-            <h3 class="font-bold text-lg text-gray-800">تدقيق الحصص الأسبوعية المحسوبة 📚</h3>
+            <h3 class="font-bold text-lg text-gray-800">إدارة وتدقيق الحصص الأسبوعية 📚</h3>
             <button onclick="closeLessonsModal()" class="text-gray-500 hover:text-red-500 font-bold text-xl">&times;</button>
         </div>
         
+        <!-- إضافة حصة يدوي -->
+        <div class="mb-4 flex gap-2">
+            <input type="text" id="manualLessonInput" placeholder="أضف حصة جديدة يدويّاً..." class="border p-2 rounded text-sm flex-1 focus:outline-none focus:border-indigo-500">
+            <button onclick="addManualLesson()" class="bg-indigo-600 text-white px-3 py-2 rounded text-sm hover:bg-indigo-700">إضافة</button>
+        </div>
+
         <div id="lessonsListContainer" class="space-y-2 divide-y text-sm text-gray-700"></div>
 
         <div class="mt-6 text-center">
-            <button onclick="closeLessonsModal()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm hover:bg-gray-300 w-full">إغلاق</button>
+            <button onclick="closeLessonsModal()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm hover:bg-gray-300 w-full">إغلاق وتحديث اللوحة</button>
         </div>
     </div>
 </div>
@@ -940,13 +946,16 @@
 <script>
 let manualStudents = JSON.parse(localStorage.getItem('alhoda_manual_students')) || [];
 let excludedStudents = JSON.parse(localStorage.getItem('alhoda_excluded_students')) || [];
-let detectedLessonsDetails = [];
+
+let manualLessons = JSON.parse(localStorage.getItem('alhoda_manual_lessons')) || [];
+let excludedLessons = JSON.parse(localStorage.getItem('alhoda_excluded_lessons')) || [];
+let allActiveLessons = [];
 
 function calculateAcademyStats() {
     const lessonCells = document.querySelectorAll('.schedule-grid td');
-    let totalLessons = 0;
+    let totalLessonsCount = 0;
     let studentSet = new Set();
-    detectedLessonsDetails = [];
+    let scheduleLessons = [];
 
     lessonCells.forEach(td => {
         if (td.innerText && td.innerText.trim() !== '') {
@@ -955,8 +964,10 @@ function calculateAcademyStats() {
             if (lines.length > 0) {
                 let studentPart = lines[0];
                 if (studentPart && !studentPart.includes('السبت') && !studentPart.includes('الأحد') && !studentPart.includes('الإثنين') && !studentPart.includes('الثلاثاء') && !studentPart.includes('الأربعاء')) {
-                    totalLessons++;
-                    detectedLessonsDetails.push(studentPart);
+                    
+                    if (!excludedLessons.includes(studentPart)) {
+                        scheduleLessons.push({ text: studentPart, type: 'schedule' });
+                    }
                     
                     let names = studentPart.split(/\s+و\s+|\s+و/);
                     names.forEach(name => {
@@ -972,19 +983,23 @@ function calculateAcademyStats() {
         }
     });
 
+    let formattedManualLessons = manualLessons.map(l => ({ text: l, type: 'manual' }));
+    allActiveLessons = [...scheduleLessons, ...formattedManualLessons];
+    totalLessonsCount = allActiveLessons.length;
+
     manualStudents.forEach(s => studentSet.add(s));
 
     if(document.getElementById('total-lessons-count')) {
-        document.getElementById('total-lessons-count').innerText = totalLessons;
+        document.getElementById('total-lessons-count').innerText = totalLessonsCount;
     }
     if(document.getElementById('total-students-count')) {
         document.getElementById('total-students-count').innerText = studentSet.size;
     }
     
-    // ترتيب الأسماء أبجدياً باللغة العربية
     window.currentUniqueStudents = Array.from(studentSet).sort((a, b) => a.localeCompare(b, 'ar'));
 }
 
+// نافذة الطلاب
 function openStudentsModal() {
     calculateAcademyStats();
     const container = document.getElementById('studentsListContainer');
@@ -1012,29 +1027,6 @@ function closeStudentsModal() {
     calculateAcademyStats();
 }
 
-function openLessonsModal() {
-    calculateAcademyStats();
-    const container = document.getElementById('lessonsListContainer');
-    container.innerHTML = '';
-
-    if (detectedLessonsDetails.length > 0) {
-        detectedLessonsDetails.forEach((lesson, index) => {
-            let row = document.createElement('div');
-            row.className = 'pt-2 flex justify-between items-center';
-            row.innerHTML = `<span>حصة #${index + 1}: ${lesson}</span>`;
-            container.appendChild(row);
-        });
-    } else {
-        container.innerHTML = '<p class="text-center text-gray-400 py-4">لا توجد حصص مسجلة</p>';
-    }
-
-    document.getElementById('lessonsModal').classList.remove('hidden');
-}
-
-function closeLessonsModal() {
-    document.getElementById('lessonsModal').classList.add('hidden');
-}
-
 function addManualStudent() {
     let input = document.getElementById('manualStudentInput');
     let name = input.value.trim();
@@ -1057,6 +1049,82 @@ function removeStudent(name) {
         }
     }
     openStudentsModal();
+}
+
+// نافذة الحصص (إدارة كاملة: تعديل، حذف، إضافة)
+function openLessonsModal() {
+    calculateAcademyStats();
+    const container = document.getElementById('lessonsListContainer');
+    container.innerHTML = '';
+
+    if (allActiveLessons.length > 0) {
+        allActiveLessons.forEach((lessonObj, index) => {
+            let row = document.createElement('div');
+            row.className = 'pt-2 flex justify-between items-center text-sm';
+            row.innerHTML = `
+                <span class="truncate max-w-[220px]" title="${lessonObj.text}">حصة #${index + 1}: ${lessonObj.text}</span>
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="editLesson('${lessonObj.text.replace(/'/g, "\\'")}', '${lessonObj.type}')" class="text-blue-500 hover:text-blue-700 text-xs bg-blue-50 px-2 py-1 rounded">تعديل</button>
+                    <button onclick="removeLesson('${lessonObj.text.replace(/'/g, "\\'")}', '${lessonObj.type}')" class="text-red-500 hover:text-red-700 text-xs bg-red-50 px-2 py-1 rounded">حذف/استبعاد</button>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    } else {
+        container.innerHTML = '<p class="text-center text-gray-400 py-4">لا توجد حصص مسجلة</p>';
+    }
+
+    document.getElementById('lessonsModal').classList.remove('hidden');
+}
+
+function closeLessonsModal() {
+    document.getElementById('lessonsModal').classList.add('hidden');
+    calculateAcademyStats();
+}
+
+function addManualLesson() {
+    let input = document.getElementById('manualLessonInput');
+    let lessonText = input.value.trim();
+    if(lessonText && !manualLessons.includes(lessonText)) {
+        manualLessons.push(lessonText);
+        localStorage.setItem('alhoda_manual_lessons', JSON.stringify(manualLessons));
+        input.value = '';
+        openLessonsModal();
+    }
+}
+
+function removeLesson(text, type) {
+    if (type === 'manual') {
+        manualLessons = manualLessons.filter(l => l !== text);
+        localStorage.setItem('alhoda_manual_lessons', JSON.stringify(manualLessons));
+    } else {
+        if (!excludedLessons.includes(text)) {
+            excludedLessons.push(text);
+            localStorage.setItem('alhoda_excluded_lessons', JSON.stringify(excludedLessons));
+        }
+    }
+    openLessonsModal();
+}
+
+function editLesson(oldText, type) {
+    let newText = prompt("أدخل اسم الحصة الجديد:", oldText);
+    if (newText && newText.trim() !== '') {
+        newText = newText.trim();
+        if (type === 'manual') {
+            manualLessons = manualLessons.map(l => l === oldText ? newText : l);
+            localStorage.setItem('alhoda_manual_lessons', JSON.stringify(manualLessons));
+        } else {
+            if (!excludedLessons.includes(oldText)) {
+                excludedLessons.push(oldText);
+                localStorage.setItem('alhoda_excluded_lessons', JSON.stringify(excludedLessons));
+            }
+            if (!manualLessons.includes(newText)) {
+                manualLessons.push(newText);
+                localStorage.setItem('alhoda_manual_lessons', JSON.stringify(manualLessons));
+            }
+        }
+        openLessonsModal();
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
