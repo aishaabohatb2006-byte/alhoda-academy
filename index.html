@@ -166,6 +166,11 @@
     <span class="text-xs text-gray-500 block">إجمالي الطلاب (اضغط للتدقيق والإدارة ⚙️)</span>
     <span id="total-students-count" class="text-lg font-bold text-emerald-600">0</span>
 </div>
+            <!-- أزرار التصدير والاستيراد -->
+<div class="flex gap-2 mb-6 mt-2">
+    <button onclick="exportData()" class="flex-1 bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-xs hover:bg-blue-700 transition-all shadow-sm">📤 تصدير (نسخ)</button>
+    <button onclick="importData()" class="flex-1 bg-purple-600 text-white font-bold py-2 px-3 rounded-lg text-xs hover:bg-purple-700 transition-all shadow-sm">📥 استيراد (لصق)</button>
+</div>
             <div class="mb-6">
                 <label class="text-xs font-black text-gray-500 mb-2 block uppercase">تصفية الجدول:</label>
                 <select id="sheikhFilter" onchange="renderGrid()" class="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-gray-700 font-bold text-sm outline-none focus:border-violet-400">
@@ -1130,5 +1135,40 @@ function editLesson(oldText, type) {
 window.addEventListener('DOMContentLoaded', () => {
     setTimeout(calculateAcademyStats, 600);
 });
+    // --- دوال تصدير واستيراد البيانات بين الأجهزة ---
+function exportData() {
+    let data = {};
+    // تجميع كل البيانات المخزنة في المتصفح
+    for (let i = 0; i < localStorage.length; i++) {
+        let key = localStorage.key(i);
+        data[key] = localStorage.getItem(key);
+    }
+    // تحويل البيانات لشفرة نصية آمنة تدعم اللغة العربية
+    let dataString = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    
+    // نسخ الشفرة تلقائياً
+    navigator.clipboard.writeText(dataString).then(() => {
+        alert("✅ تم نسخ بيانات الجدول بنجاح!\n\nروحي الواتساب دلوقتي واعملي (لصق) وابعتیها لأختك.");
+    }).catch(err => {
+        prompt("عفواً، المتصفح يمنع النسخ التلقائي. انسخي الكود ده يدوياً:", dataString);
+    });
+}
+
+function importData() {
+    let importedString = prompt("📥 الصقي كود البيانات اللي اتبعتلك هنا:");
+    if (importedString) {
+        try {
+            // فك الشفرة وإرجاع البيانات
+            let decodedData = JSON.parse(decodeURIComponent(escape(atob(importedString))));
+            for (let key in decodedData) {
+                localStorage.setItem(key, decodedData[key]);
+            }
+            alert("✅ تم استيراد البيانات بنجاح! الصفحة هتعمل تحديث دلوقتي.");
+            location.reload(); // تحديث الصفحة لعرض الجدول الجديد
+        } catch (e) {
+            alert("❌ الكود غير صحيح أو غير مكتمل. اتأكدي إنك نسختي الكود كله صح.");
+        }
+    }
+}
 </script>
 </html>
