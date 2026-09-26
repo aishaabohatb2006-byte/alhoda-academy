@@ -171,6 +171,7 @@
     <button onclick="exportData()" class="flex-1 bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-xs hover:bg-blue-700 transition-all shadow-sm">📤 تصدير (نسخ)</button>
     <button onclick="importData()" class="flex-1 bg-purple-600 text-white font-bold py-2 px-3 rounded-lg text-xs hover:bg-purple-700 transition-all shadow-sm">📥 استيراد (لصق)</button>
 </div>
+            <button onclick="fixMyLessons()" class="w-full mt-2 bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-xs hover:bg-red-700 shadow-sm">🛠️ استرجاع الحصص المخفية</button>
             <div class="mb-6">
                 <label class="text-xs font-black text-gray-500 mb-2 block uppercase">تصفية الجدول:</label>
                 <select id="sheikhFilter" onchange="renderGrid()" class="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-gray-700 font-bold text-sm outline-none focus:border-violet-400">
@@ -1168,6 +1169,46 @@ function importData() {
         } catch (e) {
             alert("❌ الكود غير صحيح أو غير مكتمل. اتأكدي إنك نسختي الكود كله صح.");
         }
+    }
+}
+    // كود استرجاع وتحديث أسماء الحصص القديمة
+function fixMyLessons() {
+    let data = JSON.parse(localStorage.getItem('huda_schedule_v10'));
+    if (!data) return;
+    
+    // خريطة تحويل الأوقات القديمة للجديدة
+    const map = {
+        '8-7 ص': '7 - 8 ص', '7-8 ص': '7 - 8 ص',
+        '9-8 ص': '8 - 9 ص', '8-9 ص': '8 - 9 ص',
+        '10-9 ص': '9 - 10 ص', '9-10 ص': '9 - 10 ص',
+        '11-10 ص': '10 - 11 ص', '10-11 ص': '10 - 11 ص',
+        '12-11 ص': '11 - 12 ص', '11-12 ص': '11 - 12 ص',
+        '1-12 م': '12 - 1 م', '12-1 م': '12 - 1 م',
+        '2-1 م': '1 - 2 م', '1-2 م': '1 - 2 م',
+        '3-2 م': '2 - 3 م', '2-3 م': '2 - 3 م',
+        '4-3 م': '3 - 4 م', '3-4 م': '3 - 4 م',
+        '5-4 م': '4 - 5 م', '4-5 م': '4 - 5 م',
+        '6-5 م': '5 - 6 م', '5-6 م': '5 - 6 م',
+        '7-6 م': '6 - 7 م', '6-7 م': '6 - 7 م',
+        '8-7 م': '7 - 8 م', '7-8 م': '7 - 8 م',
+        '9-8 م': '8 - 9 م', '8-9 م': '8 - 9 م',
+        '10-9 م': '9 - 10 م', '9-10 م': '9 - 10 م'
+    };
+
+    let fixedCount = 0;
+    data.forEach(item => {
+        if (item.slot && map[item.slot]) {
+            item.slot = map[item.slot]; // تحديث الاسم
+            fixedCount++;
+        }
+    });
+
+    if (fixedCount > 0) {
+        localStorage.setItem('huda_schedule_v10', JSON.stringify(data));
+        alert("✅ تم استرجاع وتحديث " + fixedCount + " حصة بنجاح! الجدول هيظهر دلوقتي.");
+        location.reload(); // تحديث الصفحة لإظهار الجدول
+    } else {
+        alert("✅ مفيش حصص مخفية، كل حاجة تمام.");
     }
 }
 </script>
